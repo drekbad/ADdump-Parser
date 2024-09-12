@@ -6,31 +6,34 @@ def parse_html_file(input_file):
     with open(input_file, 'r') as f:
         content = f.read()
 
-    # Regular expression to find groups (headers like "cn_XXXX" in <thead>)
+    # Pattern to find groups by display name (text right after id="cn_X")
     group_pattern = r'<thead><tr><td colspan="10" id="cn_(.*?)">(.*?)</td></tr></thead>'
-    user_pattern = r'<tbody>.*?<tr><th>(.*?)</th>.*?<th>(.*?)</th>.*?<th>(.*?)</th>.*?</tr></tbody>'
     
+    # Pattern to find users (SAM Name) in the <tbody> following a specific group
+    user_pattern = r'<tbody>(.*?)</tbody>'
+    user_row_pattern = r'<tr><th>(.*?)</th><th>(.*?)</th><th>(.*?)</th>.*?</tr>'
+
+    # Find all groups with their CN and display name
     groups = re.findall(group_pattern, content)
     user_groups = defaultdict(list)
 
-    # Loop through each group and find associated users
     for group_id, group_name in groups:
-        # Find the corresponding user table for the group
-        group_escaped = re.escape(group_id)  # Escape any special characters in the group name
+        # Escape any special characters in the group ID to safely use in the regex
+        group_escaped = re.escape(group_id)
+
+        # Find the corresponding <tbody> section for the group
         user_table_pattern = rf'<thead><tr><td colspan="10" id="cn_{group_escaped}">.*?</thead>(.*?)</tbody>'
         user_table_match = re.search(user_table_pattern, content, re.DOTALL)
+        
         if user_table_match:
             user_table = user_table_match.group(1)
-            users = re.findall(user_pattern, user_table)
-            # Extract "SAM Name" for each user
+            # Extract all user rows from this table
+            users = re.findall(user_row_pattern, user_table)
+            
             for _, _, sam_name in users:
                 user_groups[group_name].append(sam_name)
 
     return user_groups
-
-def normalize_group_name(group_name):
-    """Helper function to convert spaces in group names to underscores for matching"""
-    return group_name.replace(" ", "_")
 
 def list_unique_groups(user_groups):
     print(f"All domain groups found: {len(user_groups)}")
@@ -38,11 +41,9 @@ def list_unique_groups(user_groups):
         print(f"- {group}")
 
 def list_users_in_group(group_name, user_groups, output_file=None):
-    # Normalize group name to account for underscores
-    normalized_group_name = normalize_group_name(group_name)
+    # Find users in the specified group
+    users = user_groups.get(group_name, [])
     
-    # Check if the normalized group name exists
-    users = user_groups.get(normalized_group_name, [])
     if users:
         unique_users = sorted(set(users))
         user_count = len(unique_users)
