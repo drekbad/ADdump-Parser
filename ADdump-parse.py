@@ -35,7 +35,6 @@ def parse_html_file(input_file):
     return user_groups
 
 def list_unique_groups(user_groups, sort_by_size=False):
-    # Optionally sort by size (group with most users first)
     if sort_by_size:
         sorted_groups = sorted(user_groups.items(), key=lambda x: len(set(x[1])), reverse=True)
     else:
@@ -48,14 +47,17 @@ def list_unique_groups(user_groups, sort_by_size=False):
     # Print count at the end
     print(f"\nTotal groups found: {len(sorted_groups)}")
 
-def list_users_in_group(group_name, user_groups, output_file=None):
-    # Find users in the specified group
+def list_users_in_group(group_name, user_groups, detailed=False, output_file=None):
     users = user_groups.get(group_name, [])
     
     if users:
         unique_users = sorted(set(users))  # Remove duplicates and sort users
         user_count = len(unique_users)
-        output = [f"{user[1]} ({user[0]})" for user in unique_users]
+
+        if detailed:
+            output = [f"{user[1]} ({user[0]}) - Flags: {user[2]}" for user in unique_users]
+        else:
+            output = [user[1] for user in unique_users]
 
         if output_file:
             with open(output_file, 'w') as f:
@@ -63,7 +65,7 @@ def list_users_in_group(group_name, user_groups, output_file=None):
         else:
             print("\n".join(output))
 
-        # Print count at the end
+        # Print count at the top and bottom
         print(f"\n{group_name} has {user_count} unique users.")
     else:
         print(f"No users found for group: {group_name}")
@@ -73,16 +75,16 @@ def compare_sam_to_cn(sam_name, cn, formats):
     Compares SAM name to CN based on the specified formats.
     Supported formats: 'first.last', 'fLast'.
     """
+    cn_parts = cn.split()
     for fmt in formats:
-        if fmt == 'first.last':
-            expected_sam = '.'.join(cn.split())
-        elif fmt == 'fLast':
-            parts = cn.split()
-            expected_sam = parts[0][0] + parts[1] if len(parts) > 1 else parts[0]
+        if fmt == 'first.last' and len(cn_parts) >= 2:
+            expected_sam = '.'.join([cn_parts[0].lower(), cn_parts[-1].lower()])
+        elif fmt == 'fLast' and len(cn_parts) >= 2:
+            expected_sam = (cn_parts[0][0] + cn_parts[-1]).lower()
         else:
             continue
         
-        if sam_name == expected_sam:
+        if sam_name.lower() == expected_sam:
             return True
     return False
 
@@ -106,11 +108,12 @@ def main():
     parser.add_argument('-i', '--input', required=True, help='Input HTML file')
     parser.add_argument('-g', '--group', help='Group name to list users from (e.g., "Domain Users")')
     parser.add_argument('-o', '--output', help='Output file for user list (optional)')
-    parser.add_argument('--sort-by-size', action='store_true', help='Sort groups by number of users (largest to smallest)')
+    parser.add_argument('--sort', action='store_true', help='Sort groups by number of users (largest to smallest)')
+    parser.add_argument('--detailed', action='store_true', help='Display CN and flags for users in the specified group')
     
-    # Naming format options
+    # Naming format options (case-insensitive)
     parser.add_argument('--first-last', action='store_true', help='Expect SAM names in "first.last" format')
-    parser.add_argument('--fLast', action='store_true', help='Expect SAM names in "fLast" format')
+    parser.add_argument('--flast', action='store_true', help='Expect SAM names in "fLast" format')
     
     args = parser.parse_args()
 
@@ -121,15 +124,15 @@ def main():
     formats = []
     if args.first_last:
         formats.append('first.last')
-    if args.fLast:
+    if args.flast:
         formats.append('fLast')
 
     # If group is specified, list users in that group
     if args.group:
-        list_users_in_group(args.group, user_groups, args.output)
+        list_users_in_group(args.group, user_groups, args.detailed, args.output)
     else:
         # List all unique groups if no group is specified, with optional sorting
-        list_unique_groups(user_groups, args.sort_by_size)
+        list_unique_groups(user_groups, args.sort)
 
     # If formats are provided, check SAM names against CN
     if formats:
