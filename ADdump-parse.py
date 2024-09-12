@@ -36,24 +36,30 @@ def parse_html_file(input_file):
     return user_groups
 
 def list_unique_groups(user_groups):
-    for group in user_groups.keys():
+    unique_groups = sorted(set(user_groups.keys()))  # Remove duplicates and sort
+    for group in unique_groups:
         print(group)
+    
+    # Print count at the end
+    print(f"\nTotal groups found: {len(unique_groups)}")
 
 def list_users_in_group(group_name, user_groups, output_file=None):
     # Find users in the specified group
     users = user_groups.get(group_name, [])
     
     if users:
-        unique_users = sorted(set(users))
+        unique_users = sorted(set(users))  # Remove duplicates and sort users
         user_count = len(unique_users)
-        output = [f"{group_name} has {user_count} unique users:"]
-        output.extend(unique_users)
+        output = unique_users
 
         if output_file:
             with open(output_file, 'w') as f:
                 f.write("\n".join(output))
         else:
             print("\n".join(output))
+
+        # Print count at the end
+        print(f"\n{group_name} has {user_count} unique users.")
     else:
         print(f"No users found for group: {group_name}")
 
