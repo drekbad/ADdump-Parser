@@ -9,9 +9,9 @@ def parse_html_file(input_file):
     # Pattern to find groups by display name (text right after id="cn_X")
     group_pattern = r'<thead><tr><td colspan="10" id="cn_(.*?)">(.*?)</td></tr></thead>'
     
-    # Pattern to find users (SAM Name) in the <tbody> following a specific group
-    user_pattern = r'<tbody>(.*?)</tbody>'
-    user_row_pattern = r'<tr><th>(.*?)</th><th>(.*?)</th><th>(.*?)</th>.*?</tr>'
+    # Pattern to find users (extract third <td> in <tr> within <tbody> after the group's <thead>)
+    user_table_pattern = r'<tbody>(.*?)</tbody>'
+    user_row_pattern = r'<tr>.*?<td>(.*?)</td>.*?<td>(.*?)</td>.*?<td>(.*?)</td>'
 
     # Find all groups with their CN and display name
     groups = re.findall(group_pattern, content)
@@ -22,12 +22,12 @@ def parse_html_file(input_file):
         group_escaped = re.escape(group_id)
 
         # Find the corresponding <tbody> section for the group
-        user_table_pattern = rf'<thead><tr><td colspan="10" id="cn_{group_escaped}">.*?</thead>(.*?)</tbody>'
-        user_table_match = re.search(user_table_pattern, content, re.DOTALL)
+        user_table_search_pattern = rf'<thead><tr><td colspan="10" id="cn_{group_escaped}">.*?</thead>(.*?)</tbody>'
+        user_table_match = re.search(user_table_search_pattern, content, re.DOTALL)
         
         if user_table_match:
             user_table = user_table_match.group(1)
-            # Extract all user rows from this table
+            # Extract all user rows from this table, focusing on the third <td> (SAM Name)
             users = re.findall(user_row_pattern, user_table)
             
             for _, _, sam_name in users:
@@ -36,9 +36,8 @@ def parse_html_file(input_file):
     return user_groups
 
 def list_unique_groups(user_groups):
-    print(f"All domain groups found: {len(user_groups)}")
     for group in user_groups.keys():
-        print(f"- {group}")
+        print(group)
 
 def list_users_in_group(group_name, user_groups, output_file=None):
     # Find users in the specified group
