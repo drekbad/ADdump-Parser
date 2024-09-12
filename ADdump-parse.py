@@ -6,7 +6,7 @@ def parse_html_file(input_file):
     with open(input_file, 'r') as f:
         content = f.read()
 
-    # Regular expression to find groups (headers like "cn_XXXX")
+    # Regular expression to find groups (headers like "cn_XXXX" in <thead>)
     group_pattern = r'<thead><tr><td colspan="10" id="cn_(.*?)">(.*?)</td></tr></thead>'
     user_pattern = r'<tbody>.*?<tr><th>(.*?)</th>.*?<th>(.*?)</th>.*?<th>(.*?)</th>.*?</tr></tbody>'
     
@@ -15,7 +15,9 @@ def parse_html_file(input_file):
 
     # Loop through each group and find associated users
     for group_id, group_name in groups:
-        user_table_pattern = rf'<thead><tr><td colspan="10" id="cn_{group_id}">.*?</thead>(.*?)</tbody>'
+        # Find the corresponding user table for the group
+        group_escaped = re.escape(group_id)  # Escape any special characters in the group name
+        user_table_pattern = rf'<thead><tr><td colspan="10" id="cn_{group_escaped}">.*?</thead>(.*?)</tbody>'
         user_table_match = re.search(user_table_pattern, content, re.DOTALL)
         if user_table_match:
             user_table = user_table_match.group(1)
@@ -26,13 +28,21 @@ def parse_html_file(input_file):
 
     return user_groups
 
+def normalize_group_name(group_name):
+    """Helper function to convert spaces in group names to underscores for matching"""
+    return group_name.replace(" ", "_")
+
 def list_unique_groups(user_groups):
     print(f"All domain groups found: {len(user_groups)}")
     for group in user_groups.keys():
         print(f"- {group}")
 
 def list_users_in_group(group_name, user_groups, output_file=None):
-    users = user_groups.get(group_name, [])
+    # Normalize group name to account for underscores
+    normalized_group_name = normalize_group_name(group_name)
+    
+    # Check if the normalized group name exists
+    users = user_groups.get(normalized_group_name, [])
     if users:
         unique_users = sorted(set(users))
         user_count = len(unique_users)
@@ -50,7 +60,7 @@ def list_users_in_group(group_name, user_groups, output_file=None):
 def main():
     parser = argparse.ArgumentParser(description="Parse domain user groups and users from HTML.")
     parser.add_argument('-i', '--input', required=True, help='Input HTML file')
-    parser.add_argument('-g', '--group', help='Group name to list users from')
+    parser.add_argument('-g', '--group', help='Group name to list users from (e.g., "Domain Users")')
     parser.add_argument('-o', '--output', help='Output file for user list (optional)')
     args = parser.parse_args()
 
