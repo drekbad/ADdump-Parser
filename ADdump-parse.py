@@ -36,9 +36,10 @@ def parse_html_file(input_file):
     return user_groups
 
 def list_unique_groups(user_groups):
-    unique_groups = sorted(set(user_groups.keys()))  # Remove duplicates and sort
-    for group in unique_groups:
-        print(group)
+    unique_groups = sorted(user_groups.items(), key=lambda x: x[0].lower())  # Sort 0-9A-Z without modifying capitalization
+    for group, users in unique_groups:
+        user_count = len(set(users))  # Unique users per group
+        print(f"{group} - ({user_count})")
     
     # Print count at the end
     print(f"\nTotal groups found: {len(unique_groups)}")
